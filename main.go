@@ -8,13 +8,13 @@ import (
 func main() {
 
 	bc := blockchain.NewBlockchain()
-	b1:= blockchain.NewBlock(bc.Blocks[len(bc.Blocks)-1].Header,"Transactions 1")
-	bc.AddBlock(b1)
-	b2:= blockchain.NewBlock(bc.Blocks[len(bc.Blocks)-1].Header,"Transactions 2")
-	bc.AddBlock(b2)
+	for i:=1;i<5;i++ {
+	bc.AddBlock(fmt.Sprintf("Transactions %d",i))
+      }
 
-	for _, block := range bc.Blocks {
-		fmt.Println("==========================")
+	for nb, block := range bc.Blocks {
+		fmt.Println("========================================")
+		fmt.Printf("Block #: %d\n", nb)
 		fmt.Printf("Header: %x\n", block.Header)
 		fmt.Printf("Previous Header: %x\n", block.PreHeader)
 		fmt.Printf("Transactions: %s\n", block.Transactions)
