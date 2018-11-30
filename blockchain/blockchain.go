@@ -2,14 +2,13 @@ package blockchain
 
 import (
 	"fmt"
-	"github.com/alishoker/blockchinho/blockchain"
 	"github.com/boltdb/bolt"
 	"log"
 )
 
 const (
 	bucketBlocks = "blocks"
-	dbFile = "blockchain.db"
+	dbFile = "blockchain.DB"
 )
 
 var keyLastBlock = []byte("l")
@@ -17,7 +16,7 @@ var keyLastBlock = []byte("l")
 type Blockchain struct {
 
 	lastBlockHeader []byte
-	db *bolt.DB
+	DB              *bolt.DB
 }
 
 type BlockchainIterator struct{
@@ -29,7 +28,7 @@ func (bc *Blockchain) AddBlock(trans string) {
 
 	var lastHeader []byte
 
-	err := bc.db.View(func(tx *bolt.Tx) error {
+	err := bc.DB.View(func(tx *bolt.Tx) error {
 		buck := tx.Bucket([]byte(bucketBlocks))
 		lastHeader = buck.Get(keyLastBlock)
 
@@ -41,7 +40,7 @@ func (bc *Blockchain) AddBlock(trans string) {
 
 	newBlock := NewBlock(lastHeader,trans)
 
-    err = db.Update(func(tx *bolt.Tx) error {
+    err = bc.DB.Update(func(tx *bolt.Tx) error {
 
 		buck:= tx.Bucket([]byte(bucketBlocks))
 
@@ -69,7 +68,7 @@ func (bc *Blockchain) AddBlock(trans string) {
 
 
 func (bc *Blockchain) Iterator() *BlockchainIterator {
-	return &BlockchainIterator{bc.lastBlockHeader, bc.db}
+	return &BlockchainIterator{bc.lastBlockHeader, bc.DB}
 }
 
 func (bci *BlockchainIterator) Next() *Block {
@@ -93,24 +92,26 @@ func (bci *BlockchainIterator) Next() *Block {
 }
 
 func NewBlockchain() *Blockchain {
+	var lastHash []byte
 
 	db, err := bolt.Open(dbFile,0600,nil)
 
 	if err != nil {
 		log.Fatal(err)
 	}
-	//We need to keep db opened
-	//defer db.Close()
+	//We need to keep DB opened
+	//defer DB.Close()
 
 	err = db.Update(func(tx *bolt.Tx) error {
 
-		var bucket bolt.Bucket
-		var lastHash []byte
+		var bucket *bolt.Bucket
+		var err error
+
 		//b := tx.CreateBucketIfNotExists([]byte(bucketBlocks))
 
-		_, err := bucket.CreateBucketIfNotExists([]byte(bucketBlocks))
+		bucket, err = tx.CreateBucketIfNotExists([]byte(bucketBlocks))
 		if err != nil {
-			log.Panic(err)
+			log.Panic("Blockchain Update:", err)
 		}
 
 		if lastHash = bucket.Get(keyLastBlock); lastHash == nil {
