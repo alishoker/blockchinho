@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"text/tabwriter"
 )
 
 type CLI struct{
@@ -18,10 +19,15 @@ func newCLI(bc *blockchain.Blockchain) *CLI {
 }
 
 func (cli *CLI) usage(){
+
+	//format output
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, '.', tabwriter.AlignRight|tabwriter.Debug)
+
 	fmt.Println("A command line client interface (CLI) to interact with Blockchinho blockchain.")
 	fmt.Println("Usage:")
-	fmt.Println("\taddblock\t trans TRANSACTIONS\t -- add a block to the blockchain")
-	fmt.Println("\tprintchain\t\t\t\t -- print all the blockchain")
+	fmt.Println("\taddblock -trans 'TRANSACTIONS'\t -- add a block to the blockchain")
+	fmt.Println("\tprintchain\t\t\t -- print all the blockchain")
+	w.Flush()
 }
 
 func (cli *CLI) validateArgs(){
