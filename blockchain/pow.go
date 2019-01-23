@@ -39,7 +39,7 @@ func (pow *ProofOfWork) Mine() ( int, []byte){
 	preData:=bytes.Join([][]byte{
 		pow.block.PreHeader,
 		[]byte(strconv.FormatInt(int64(pow.block.TimeStamp), 16)),
-		pow.block.Transactions,
+		pow.block.TransactionsDigest(),
 		[]byte(strconv.FormatInt(int64(targetBits), 16))},
 		[]byte{})
 
@@ -70,7 +70,7 @@ func (pow *ProofOfWork) Validate() bool {
 	data:=bytes.Join([][]byte{
 		pow.block.PreHeader,
 		[]byte(strconv.FormatInt(int64(pow.block.TimeStamp), 16)),
-		pow.block.Transactions,
+		pow.block.TransactionsDigest(),
 		[]byte(strconv.FormatInt(int64(targetBits), 16))},
 		[]byte{})
 

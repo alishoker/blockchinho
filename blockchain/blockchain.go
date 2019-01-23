@@ -2,8 +2,10 @@ package blockchain
 
 import (
 	"fmt"
+	"github.com/alishoker/blockchinho/transaction"
 	"github.com/boltdb/bolt"
 	"log"
+	"os"
 )
 
 const (
@@ -24,7 +26,7 @@ type BlockchainIterator struct{
 	db *bolt.DB
 }
 
-func (bc *Blockchain) AddBlock(trans string) {
+func (bc *Blockchain) AddBlock(trans []*transaction.Transaction) {
 
 	var lastHeader []byte
 
@@ -92,6 +94,12 @@ func (bci *BlockchainIterator) Next() *Block {
 }
 
 func NewBlockchain() *Blockchain {
+
+	if dbExists(){
+		fmt.Println("Blockchain is not existing. Please create one.")
+		os.Exit(1)
+	}
+
 	var lastHash []byte
 
 	db, err := bolt.Open(dbFile,0600,nil)
@@ -99,7 +107,7 @@ func NewBlockchain() *Blockchain {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//We need to keep DB opened
+	//We need to keep DB opened, close it at the caller of this method
 	//defer DB.Close()
 
 	err = db.Update(func(tx *bolt.Tx) error {
@@ -115,10 +123,69 @@ func NewBlockchain() *Blockchain {
 		}
 
 		if lastHash = bucket.Get(keyLastBlock); lastHash == nil {
+			fmt.Println("Blockchain is not existing. Please create one.")
+			log.Fatal(err)
+		}
 
-			fmt.Println("Blockchain not existing. Creating a new one...")
+		return nil //closure
 
-			genesis := NewBlock([]byte{}, "The Genesis Block")
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+
+	return &Blockchain{lastHash,db}
+}
+
+func dbExists() bool{
+
+
+	if _,err:=os.Stat(dbFile);os.IsNotExist(err){
+		return false
+	}
+	return true
+
+}
+func CreateBlockchain(address string) *Blockchain {
+
+
+	if dbExists(){
+		fmt.Println("Blockchain already exists. Exiting...")
+		os.Exit(1)
+	}
+
+
+	var lastHash []byte
+
+	db, err := bolt.Open(dbFile,0600,nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	//We need to keep DB opened, close it at the caller of this method
+	//defer DB.Close()
+
+	err = db.Update(func(tx *bolt.Tx) error {
+
+		var bucket *bolt.Bucket
+		var err error
+
+		//b := tx.CreateBucketIfNotExists([]byte(bucketBlocks))
+
+		bucket, err = tx.CreateBucketIfNotExists([]byte(bucketBlocks))
+		if err != nil {
+			log.Panic("Creating Blockchain bucket failed:", err)
+		}
+
+		if lastHash = bucket.Get(keyLastBlock); lastHash == nil {
+
+			fmt.Println("Creating a brand new Blockchain.")
+
+			coinbaseTX:=transaction.NewCoinbaseTX(address,"The Genesis Block")
+
+			genesis := NewBlock([]byte{}, []*transaction.Transaction{coinbaseTX})
 
 			err = bucket.Put(genesis.Header, genesis.Serialize())
 			if err != nil {
@@ -133,7 +200,6 @@ func NewBlockchain() *Blockchain {
 			lastHash = genesis.Header
 
 		}
-
 		return nil //closure
 
 	})

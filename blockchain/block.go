@@ -2,8 +2,10 @@ package blockchain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
+	"github.com/alishoker/blockchinho/transaction"
 	"log"
 	"time"
 )
@@ -12,15 +14,15 @@ type Block struct {
 	Header       []byte
 	PreHeader    []byte
 	TimeStamp    int64
-	Transactions []byte
+	Transactions []*transaction.Transaction
 	Nonce		int
 }
 
-func NewBlock(preHeader []byte, transactions string) *Block {
+func NewBlock(preHeader []byte, transactions []*transaction.Transaction) *Block {
 	block := &Block{Header: []byte{},
 		PreHeader:    preHeader,
 		TimeStamp:    time.Now().Unix(),
-		Transactions: []byte(transactions),
+		Transactions: transactions,
 		Nonce:0}
 	block.setHeader()
 	fmt.Printf("NewBlock: Header: %x\n", block)
@@ -34,6 +36,21 @@ func (block *Block) setHeader() {
 	block.Nonce=nonce
 	block.Header=header[:]
 	//fmt.Printf("setHeader: Header: %x\n", block)
+}
+
+func (b *Block) TransactionsDigest() []byte{
+
+	var txIDHashes [][]byte
+	var txIDDigest [32]byte
+
+	for _, tx := range b.Transactions {
+		//consider only IDs
+		txIDHashes = append(txIDHashes, tx.ID)
+	}
+
+	txIDDigest=sha256.Sum256(bytes.Join(txIDHashes,[]byte{}))
+
+	return txIDDigest[:]
 }
 
 /*

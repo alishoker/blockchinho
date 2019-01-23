@@ -10,13 +10,7 @@ import (
 	"text/tabwriter"
 )
 
-type CLI struct{
-	bc *blockchain.Blockchain
-}
-
-func newCLI(bc *blockchain.Blockchain) *CLI {
-	return &CLI{bc}
-}
+type CLI struct{}
 
 func (cli *CLI) usage(){
 
@@ -25,6 +19,7 @@ func (cli *CLI) usage(){
 
 	fmt.Println("A command line client interface (CLI) to interact with Blockchinho blockchain.")
 	fmt.Println("Usage:")
+	fmt.Println("\tcreateblockchain -address 'ADDRESS'\t -- create a new blockchain with rewards to ADDRESS")
 	fmt.Println("\taddblock -trans 'TRANSACTIONS'\t -- add a block to the blockchain")
 	fmt.Println("\tprintchain\t\t\t -- print all the blockchain")
 	w.Flush()
@@ -37,15 +32,36 @@ func (cli *CLI) validateArgs(){
 	}
 }
 
+/*
 func (cli *CLI) addBlock(trans string){
 	cli.bc.AddBlock(trans)
 	fmt.Println("Block added successfully!")
 }
+*/
+func (cli *CLI) CreateBlockChain(address string){
+	bc:=blockchain.CreateBlockchain(address)
+	bc.DB.Close()
+
+	fmt.Println("Blockchain created successfully!")
+}
+
+func (cli *CLI) ImportBlockChain(){
+	bc:=blockchain.NewBlockchain()
+	defer bc.DB.Close()
+
+	fmt.Println("Blockchain imported successfully!")
+}
+
+
 
 func (cli *CLI) printBlockchain() {
 
+	bc := blockchain.NewBlockchain()
+	defer bc.DB.Close()
+
 	var block *blockchain.Block
-	bci := cli.bc.Iterator()
+	bci := bc.Iterator()
+	defer bc.DB.Close()
 
 	for{
 		block = bci.Next()
@@ -70,6 +86,9 @@ func (cli *CLI) printBlockchain() {
 func (cli *CLI) Run() {
 	cli.validateArgs()
 
+	createBlockchainCmd :=flag.NewFlagSet("createblockchain",flag.ExitOnError)
+	createBlockchainAddress :=createBlockchainCmd.String("address","","The address to send reward to")
+
 	addBlockCmd := flag.NewFlagSet("addblock",flag.ExitOnError)
 	addBlockTransaction := addBlockCmd.String("trans", "", "Transactions")
 
@@ -86,7 +105,8 @@ func (cli *CLI) Run() {
 				cli.usage()
 				os.Exit(1)
 			}
-			cli.addBlock(*addBlockTransaction)
+			//FIXME
+			//cli.addBlock(*addBlockTransaction)
 		}
 
 	case "printblockchain":
@@ -96,6 +116,19 @@ func (cli *CLI) Run() {
 		}
 		if printBlockchainCmd.Parsed() {
 			cli.printBlockchain()
+		}
+	case "createblockchain":
+		err:=createBlockchainCmd.Parse(os.Args[2:])
+		if err!=nil{
+			log.Panic(err)
+		}
+		if createBlockchainCmd.Parsed(){
+			if *createBlockchainAddress==""{
+				createBlockchainCmd.Usage()
+				os.Exit(1)
+			}
+			cli.CreateBlockChain(*createBlockchainAddress)
+
 		}
 
 	default:
