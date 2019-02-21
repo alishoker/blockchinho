@@ -95,7 +95,8 @@ func (bci *BlockchainIterator) Next() *Block {
 
 func NewBlockchain() *Blockchain {
 
-	if dbExists(){
+
+	if !dbExists(){
 		fmt.Println("Blockchain is not existing. Please create one.")
 		os.Exit(1)
 	}
@@ -142,7 +143,7 @@ func NewBlockchain() *Blockchain {
 func dbExists() bool{
 
 
-	if _,err:=os.Stat(dbFile);os.IsNotExist(err){
+	if _,err:=os.Stat(dbFile); os.IsNotExist(err){
 		return false
 	}
 	return true
