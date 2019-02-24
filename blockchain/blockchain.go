@@ -1,8 +1,9 @@
 package blockchain
 
 import (
+	"encoding/hex"
 	"fmt"
-	"github.com/alishoker/blockchinho/transaction"
+	. "github.com/alishoker/blockchinho/transaction"
 	"github.com/boltdb/bolt"
 	"log"
 	"os"
@@ -10,23 +11,22 @@ import (
 
 const (
 	bucketBlocks = "blocks"
-	dbFile = "blockchain.DB"
+	dbFile       = "blockchain.DB"
 )
 
 var keyLastBlock = []byte("l")
 
 type Blockchain struct {
-
 	lastBlockHeader []byte
 	DB              *bolt.DB
 }
 
-type BlockchainIterator struct{
+type BlockchainIterator struct {
 	currentHash []byte
-	db *bolt.DB
+	db          *bolt.DB
 }
 
-func (bc *Blockchain) AddBlock(trans []*transaction.Transaction) {
+func (bc *Blockchain) AddBlock(trans []*Transaction) {
 
 	var lastHeader []byte
 
@@ -40,18 +40,18 @@ func (bc *Blockchain) AddBlock(trans []*transaction.Transaction) {
 		log.Fatal(err)
 	}
 
-	newBlock := NewBlock(lastHeader,trans)
+	newBlock := NewBlock(lastHeader, trans)
 
-    err = bc.DB.Update(func(tx *bolt.Tx) error {
+	err = bc.DB.Update(func(tx *bolt.Tx) error {
 
-		buck:= tx.Bucket([]byte(bucketBlocks))
+		buck := tx.Bucket([]byte(bucketBlocks))
 
-		err = buck.Put(newBlock.Header,newBlock.Serialize())
+		err = buck.Put(newBlock.Header, newBlock.Serialize())
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		err = buck.Put(keyLastBlock,newBlock.Header)
+		err = buck.Put(keyLastBlock, newBlock.Header)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -68,7 +68,6 @@ func (bc *Blockchain) AddBlock(trans []*transaction.Transaction) {
 
 }
 
-
 func (bc *Blockchain) Iterator() *BlockchainIterator {
 	return &BlockchainIterator{bc.lastBlockHeader, bc.DB}
 }
@@ -79,7 +78,7 @@ func (bci *BlockchainIterator) Next() *Block {
 	err := bci.db.View(func(tx *bolt.Tx) error {
 		buck := tx.Bucket([]byte(bucketBlocks))
 		serialBlock := buck.Get(bci.currentHash)
-		block= DeserializeBlock(serialBlock)
+		block = DeserializeBlock(serialBlock)
 
 		return nil
 	})
@@ -95,15 +94,14 @@ func (bci *BlockchainIterator) Next() *Block {
 
 func NewBlockchain() *Blockchain {
 
-
-	if !dbExists(){
+	if !dbExists() {
 		fmt.Println("Blockchain is not existing. Please create one.")
 		os.Exit(1)
 	}
 
 	var lastHash []byte
 
-	db, err := bolt.Open(dbFile,0600,nil)
+	db, err := bolt.Open(dbFile, 0600, nil)
 
 	if err != nil {
 		log.Fatal(err)
@@ -136,14 +134,12 @@ func NewBlockchain() *Blockchain {
 		log.Panic(err)
 	}
 
-
-	return &Blockchain{lastHash,db}
+	return &Blockchain{lastHash, db}
 }
 
-func dbExists() bool{
+func dbExists() bool {
 
-
-	if _,err:=os.Stat(dbFile); os.IsNotExist(err){
+	if _, err := os.Stat(dbFile); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -151,16 +147,14 @@ func dbExists() bool{
 }
 func CreateBlockchain(address string) *Blockchain {
 
-
-	if dbExists(){
+	if dbExists() {
 		fmt.Println("Blockchain already exists. Exiting...")
 		os.Exit(1)
 	}
 
-
 	var lastHash []byte
 
-	db, err := bolt.Open(dbFile,0600,nil)
+	db, err := bolt.Open(dbFile, 0600, nil)
 
 	if err != nil {
 		log.Fatal(err)
@@ -184,16 +178,16 @@ func CreateBlockchain(address string) *Blockchain {
 
 			fmt.Println("Creating a brand new Blockchain.")
 
-			coinbaseTX:=transaction.NewCoinbaseTX(address,"The Genesis Block")
+			coinbaseTX := NewCoinbaseTX(address, "The Genesis Block")
 
-			genesis := NewBlock([]byte{}, []*transaction.Transaction{coinbaseTX})
+			genesis := NewBlock([]byte{}, []*Transaction{coinbaseTX})
 
 			err = bucket.Put(genesis.Header, genesis.Serialize())
 			if err != nil {
 				log.Panic(err)
 			}
 
-			err = bucket.Put(keyLastBlock,genesis.Header)
+			err = bucket.Put(keyLastBlock, genesis.Header)
 			if err != nil {
 				log.Panic(err)
 			}
@@ -209,6 +203,70 @@ func CreateBlockchain(address string) *Blockchain {
 		log.Panic(err)
 	}
 
-
-	return &Blockchain{lastHash,db}
+	return &Blockchain{lastHash, db}
 }
+
+func (bc *Blockchain) FindUnspentTransactions(address string) []Transaction { //refactor this
+	var unspentTXs []Transaction
+	spentTXOs := make(map[string][]int)
+	bci := bc.Iterator()
+
+	for {
+		block := bci.Next()
+
+		for _, tx := range block.Transactions {
+			txID := hex.EncodeToString(tx.ID)
+
+		Outputs:
+			for outIdx, out := range tx.Vout {
+				// Check if the output is already spent
+				if spentTXOs[txID] != nil {
+					for _, spentOut := range spentTXOs[txID] {
+						if spentOut == outIdx {
+							continue Outputs
+						}
+					}
+				}
+
+				if out.CanBeUnlockedWith(address) {
+					unspentTXs = append(unspentTXs, *tx)
+				}
+			}
+
+			//Gather all inputs that could unlock outputs locked
+
+			if tx.IsCoinbase() == false {
+				for _, in := range tx.Vin {
+					if in.CanUnlockOutputWith(address) {
+						inTxID := hex.EncodeToString(in.RefTxID)
+						spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Vout)
+					}
+				}
+			}
+		}
+
+		if len(block.PreHeader) == 0 {
+			break
+		}
+	}
+
+	return unspentTXs
+}
+
+func (bc *Blockchain) FindUTXO(address string) []TXOutput {
+
+	var TXOuts []TXOutput
+	unspentTxns := bc.FindUnspentTransactions(address) //get list of unspent txns
+
+	for _, txn := range unspentTxns {
+		for _, out := range txn.Vout { //could be many outputs in a Vout
+			if out.CanBeUnlockedWith(address) {
+				TXOuts = append(TXOuts, out)
+			}
+		}
+	}
+
+	return TXOuts
+
+}
+

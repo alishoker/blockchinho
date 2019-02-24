@@ -15,7 +15,7 @@ type Block struct {
 	PreHeader    []byte
 	TimeStamp    int64
 	Transactions []*transaction.Transaction
-	Nonce		int
+	Nonce        int
 }
 
 func NewBlock(preHeader []byte, transactions []*transaction.Transaction) *Block {
@@ -23,7 +23,7 @@ func NewBlock(preHeader []byte, transactions []*transaction.Transaction) *Block 
 		PreHeader:    preHeader,
 		TimeStamp:    time.Now().Unix(),
 		Transactions: transactions,
-		Nonce:0}
+		Nonce:        0}
 	block.setHeader()
 	fmt.Printf("NewBlock: Header: %x\n", block)
 	return block
@@ -31,14 +31,14 @@ func NewBlock(preHeader []byte, transactions []*transaction.Transaction) *Block 
 
 func (block *Block) setHeader() {
 	pow := NewProofOfWork(block)
-	nonce, header:=pow.Mine()
+	nonce, header := pow.Mine()
 
-	block.Nonce=nonce
-	block.Header=header[:]
+	block.Nonce = nonce
+	block.Header = header[:]
 	//fmt.Printf("setHeader: Header: %x\n", block)
 }
 
-func (b *Block) TransactionsDigest() []byte{
+func (b *Block) TransactionsDigest() []byte {
 
 	var txIDHashes [][]byte
 	var txIDDigest [32]byte
@@ -48,7 +48,7 @@ func (b *Block) TransactionsDigest() []byte{
 		txIDHashes = append(txIDHashes, tx.ID)
 	}
 
-	txIDDigest=sha256.Sum256(bytes.Join(txIDHashes,[]byte{}))
+	txIDDigest = sha256.Sum256(bytes.Join(txIDHashes, []byte{}))
 
 	return txIDDigest[:]
 }
@@ -68,20 +68,20 @@ func (b *Block) Serialize() []byte {
 	var out bytes.Buffer
 	marshal := gob.NewEncoder(&out)
 
-	if err:=marshal.Encode(b); err!=nil {
+	if err := marshal.Encode(b); err != nil {
 		log.Panic(err)
 	}
 
 	return out.Bytes()
 }
 
-func DeserializeBlock(in []byte) *Block{
+func DeserializeBlock(in []byte) *Block {
 
 	var block Block
 
-	marshal := gob.NewDecoder( bytes.NewReader(in))
+	marshal := gob.NewDecoder(bytes.NewReader(in))
 
-	if err:=marshal.Decode(&block); err!=nil {
+	if err := marshal.Decode(&block); err != nil {
 		log.Panic(err)
 	}
 

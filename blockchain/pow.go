@@ -10,33 +10,32 @@ import (
 
 var maxNonce = math.MaxInt64
 
-
 const targetBits = 12
 
-
 type ProofOfWork struct {
-	block *Block
+	block  *Block
 	target *big.Int
 }
 
-func NewProofOfWork(b *Block) *ProofOfWork{
+func NewProofOfWork(b *Block) *ProofOfWork {
 
-	target:=big.NewInt(1)
-	target=target.Lsh(target,uint(256-targetBits))
+	target := big.NewInt(1)
+	target = target.Lsh(target, uint(256-targetBits))
 
 	return &ProofOfWork{b, target}
-	}
+}
 
-func (pow *ProofOfWork) Mine() ( int, []byte){
+func (pow *ProofOfWork) Mine() (int, []byte) {
 
 	//var header [32]byte
-	var (checkHeader big.Int
-	 header [32]byte
-	 nonce  = 0
-	 data []byte
+	var (
+		checkHeader big.Int
+		header      [32]byte
+		nonce       = 0
+		data        []byte
 	)
 
-	preData:=bytes.Join([][]byte{
+	preData := bytes.Join([][]byte{
 		pow.block.PreHeader,
 		[]byte(strconv.FormatInt(int64(pow.block.TimeStamp), 16)),
 		pow.block.TransactionsDigest(),
@@ -44,7 +43,7 @@ func (pow *ProofOfWork) Mine() ( int, []byte){
 		[]byte{})
 
 	for ; nonce < maxNonce; nonce++ {
-		data=bytes.Join([][]byte{preData,
+		data = bytes.Join([][]byte{preData,
 			[]byte(strconv.FormatInt(int64(nonce), 16))},
 			[]byte{})
 		header = sha256.Sum256(data)
@@ -55,8 +54,7 @@ func (pow *ProofOfWork) Mine() ( int, []byte){
 		if checkHeader.Cmp(pow.target) == -1 {
 			break
 		}
-		}
-
+	}
 
 	return nonce, header[:]
 
@@ -67,19 +65,19 @@ func (pow *ProofOfWork) Validate() bool {
 	var header [32]byte
 	var checkHeader big.Int
 
-	data:=bytes.Join([][]byte{
+	data := bytes.Join([][]byte{
 		pow.block.PreHeader,
 		[]byte(strconv.FormatInt(int64(pow.block.TimeStamp), 16)),
 		pow.block.TransactionsDigest(),
 		[]byte(strconv.FormatInt(int64(targetBits), 16))},
 		[]byte{})
 
-	data=bytes.Join([][]byte{data,
+	data = bytes.Join([][]byte{data,
 		[]byte(strconv.FormatInt(int64(pow.block.Nonce), 16))},
 		[]byte{})
 
-		header = sha256.Sum256(data)
-		checkHeader.SetBytes(header[:])
+	header = sha256.Sum256(data)
+	checkHeader.SetBytes(header[:])
 
-		return checkHeader.Cmp(pow.target) == -1
+	return checkHeader.Cmp(pow.target) == -1
 }
